@@ -9,23 +9,33 @@ module.exports = async function (params) {
   const {
     path,
     value,
-    find
+    find,
+    method = 'get'
   } = params;
   if (typeof path !== 'string' || path === '') {
     return 'path must string';
   }
   const {
-    __rootdirname___
+    __rootdir__
   } = this;
-  mustdb(__rootdirname___);
-  if ('value' in params) {
-    db.set(path, value).write();
-    return value;
+  mustdb(__rootdir__);
+  switch (method) {
+    case 'get': {
+      if ('find' in params) {
+        return db.get(path).find(find).value();
+      }
+      return db.get(path).value();
+    }
+    case 'set': {
+      if ('value' in params) {
+        db.set(path, value).write();
+        return value;
+      }
+    }
+    default: {
+      return 'unknown method';
+    }
   }
-  if ('find' in params) {
-    return db.get(path).find(find).value();
-  }
-  return db.get(path).value();
 }
 
 function mustdb(dirname) {

@@ -30,11 +30,13 @@ module.exports = async function ({
     });
     ctx.call(this, {
         path: 'add_app_last_A',
-        value: a
+        value: a,
+        method: 'set'
     });
     ctx.call(this, {
         path: 'add_app_last_B',
-        value: b
+        value: b,
+        method: 'set'
     });
     await delay(Number(ms));
 

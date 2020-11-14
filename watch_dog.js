@@ -1,7 +1,8 @@
-const http = require('http')
-const fs = require('fs')
-const path = require('path')
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
 const url = require('url');
+const watch_dog_config = require('./watch_dog.config.json');
 
 const wwwFiles = {
     'index.html': fs.readFileSync('./www/index.html'),
@@ -122,7 +123,8 @@ async function runapi(req, resp) {
         const result = await app.call({
             use: faas_require,
             req,
-            __rootdirname___: __dirname
+            __rootdir__: __dirname,
+            __workshopdir__: watch_dog_config.workshopdir || __dirname
         }, {
             ...query,
             ...json

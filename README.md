@@ -4,5 +4,7 @@
 # todo
 - docker img
 - auto deps
-- circular reference
+- use 跟踪
+- [use] circular reference
 - deps gc
+- dog choker / layer raft
