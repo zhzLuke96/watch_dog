@@ -61,18 +61,19 @@ function R_JSON(resp, obj) {
     resp.write(JSON.stringify(obj));
     resp.end();
 }
-const watched = new Set();
-
-function watchModule(pth) {
-    if (watched.has(pth)) return;
-    watched.add(pth);
-    fs.watchFile(path.resolve(pth), () => {
-        delete require.cache[require.resolve(pth)]
-    })
-}
 
 function isFunc(functionToCheck) {
     return typeof functionToCheck === 'function';
+}
+
+const requireMap = new Map();
+
+function watchModule(pth) {
+    if (requireMap.has(pth)) return;
+    fs.watchFile(path.resolve(pth), () => {
+        delete require.cache[require.resolve(pth)]
+        requireMap.delete(pth);
+    })
 }
 
 function faas_require(pth) {
@@ -89,11 +90,16 @@ function faas_require(pth) {
     }
 
     const fsPth = `./app/${basename}${extname ? extname : '.js'}`;
+    if (requireMap.has(fsPth)) {
+        return requireMap.get(fsPth);
+    }
     if (!fs.existsSync(path.join(__dirname, fsPth))) {
         return null;
     }
     watchModule(fsPth);
-    return require(fsPth);
+    const m = require(fsPth);
+    requireMap.set(fsPth, m);
+    return m;
 }
 
 async function runapi(req, resp) {
@@ -173,11 +179,13 @@ function getBody(request) {
     return new Promise((resolve, reject) => {
         request.on('error', (err) => {
             console.error(err);
+            request = null; // GC
             return resolve('');
         }).on('data', (chunk) => {
             body.push(chunk);
         }).on('end', () => {
             body = Buffer.concat(body).toString();
+            request = null; // GC
             return resolve(body);
         });
     })
