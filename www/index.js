@@ -1,5 +1,7 @@
 ;;
 (async () => {
+  const prefix = '/app/';
+
   function pfetch(url, payload = {}) {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
@@ -21,7 +23,7 @@
       } = dom.dataset;
       const ispost = dom.hasAttribute('post');
       const emptyData = () => Object.keys(data).length !== 0 && Object.keys(data).filter(k => data[k]).length === 0;
-      const get = (payload) => emptyData() ? Promise.resolve(null) : (ispost ? pfetch : fetch)(`/app/${name}?${ispost ? '' : Object.keys(data).filter(k=>data[k]).reduce((acc,k)=>`${acc}&${k}=${data[k]}`,'')}`, payload);
+      const get = (payload) => emptyData() ? Promise.resolve(null) : (ispost ? pfetch : fetch)(`${prefix}${name}?${ispost ? '' : Object.keys(data).filter(k=>data[k]).reduce((acc,k)=>`${acc}&${k}=${data[k]}`,'')}`, payload);
       const inputs = Object.keys(data).map(k => {
         const dom = document.createElement('input');
         dom.placeholder = k;

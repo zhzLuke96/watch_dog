@@ -11,7 +11,7 @@ module.exports = async function ({
     const {
         use
     } = this;
-    const logger = use('/logger');
+    const logger = use('logger');
     logger.call(this, {
         msg
     });

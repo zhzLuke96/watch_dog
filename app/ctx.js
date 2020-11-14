@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 const low = require('lowdb');
 const FileSync = require('lowdb/adapters/FileSync');
 
@@ -16,9 +17,11 @@ module.exports = async function (params) {
     return 'path must string';
   }
   const {
-    __rootdir__
+    __rootdir__,
+    __workshopdir__
   } = this;
-  mustdb(__rootdir__);
+  mustdir(__workshopdir__ || __rootdir__)
+  mustdb(__workshopdir__ || __rootdir__);
   switch (method) {
     case 'get': {
       if ('find' in params) {
@@ -45,4 +48,10 @@ function mustdb(dirname) {
     deserialize: (data) => JSON.parse(data)
   });
   db = low(adapter);
+}
+
+function mustdir(dirname) {
+  if (!fs.existsSync(dirname)) {
+    fs.mkdirSync(dirname);
+  }
 }

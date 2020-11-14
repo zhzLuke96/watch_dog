@@ -4,6 +4,19 @@ const path = require('path');
 const url = require('url');
 const watch_dog_config = require('./watch_dog.config.json');
 
+;
+(() => {
+    watch_dog_config.servername = watch_dog_config.servername || 'watch_dog';
+    watch_dog_config.api_prefix = watch_dog_config.api_prefix || '/app/';
+    watch_dog_config.module_GC_timeout = watch_dog_config.module_GC_timeout || 1000 * 60 * 0.618;
+    // workshopdir
+    if (watch_dog_config.workshopdir) {
+        if (!path.isAbsolute(watch_dog_config.workshopdir)) {
+            watch_dog_config.workshopdir = path.join(__dirname, watch_dog_config.workshopdir);
+        }
+    }
+})();
+const app_dirname = './app/';
 const wwwFiles = {
     'index.html': fs.readFileSync('./www/index.html'),
     'index.js': fs.readFileSync('./www/index.js'),
@@ -23,7 +36,7 @@ const mime = p => ({
 const server = http.createServer()
 server.on('request', function (req, resp) {
     // POWERED
-    resp.setHeader('X-Powered-By', 'watch_dog_v1');
+    resp.setHeader('X-Powered-By', watch_dog_config.servername);
 
     const urlOpt = url.parse(req.url, true);
     if (urlOpt.pathname in fileMap) {
@@ -31,8 +44,8 @@ server.on('request', function (req, resp) {
     } else if (urlOpt.pathname.slice(1) in wwwFiles) {
         const filename = urlOpt.pathname.slice(1).trim();
         return RFile(resp, filename);
-    } else if (urlOpt.pathname.startsWith('/app/')) {
-        return runapi(req, resp);
+    } else if (urlOpt.pathname.startsWith(watch_dog_config.api_prefix)) {
+        return runapp(req, resp);
     }
     return R404(resp);
 })
@@ -71,10 +84,13 @@ const requireMap = new Map();
 
 function watchModule(pth) {
     if (requireMap.has(pth)) return;
-    fs.watchFile(path.resolve(pth), () => {
-        delete require.cache[require.resolve(pth)]
-        requireMap.delete(pth);
-    })
+    fs.watchFile(path.resolve(pth), () => moduleGC(pth, '[FILE_CHANGE]'))
+}
+
+function moduleGC(pth, msg) {
+    delete require.cache[require.resolve(pth)]
+    requireMap.delete(pth);
+    console.log('[MODULE_GC]', msg, pth);
 }
 
 function faas_require(pth) {
@@ -84,13 +100,15 @@ function faas_require(pth) {
         search,
         host
     } = url.parse(pth, true);
-    const basename = path.basename(pathname);
-    const extname = path.extname(pathname);
-    if (extname !== '.js' && extname !== '') {
+    const {
+        dir,
+        base,
+        ext
+    } = path.parse(pathname.replace(watch_dog_config.api_prefix, ''));
+    if (ext !== '.js' && ext !== '') {
         return null;
     }
-
-    const fsPth = `./app/${basename}${extname ? extname : '.js'}`;
+    const fsPth = `${app_dirname}${dir ? dir + '/' : ''}${base}${ext ? ext : '.js'}`;
     if (requireMap.has(fsPth)) {
         return requireMap.get(fsPth);
     }
@@ -99,11 +117,12 @@ function faas_require(pth) {
     }
     watchModule(fsPth);
     const m = require(fsPth);
+    setTimeout(() => moduleGC(fsPth, '[TIMEOUT]'), watch_dog_config.module_GC_timeout);
     requireMap.set(fsPth, m);
     return m;
 }
 
-async function runapi(req, resp) {
+async function runapp(req, resp) {
     const {
         query,
         pathname,

@@ -1,3 +1,6 @@
 {
-  "workshopdir": ""
+  "workshopdir": "./workshop/",
+  "servername": "watch_dog_v1",
+  "api_prefix": "/app/",
+  "module_GC_timeout": 0
 }
