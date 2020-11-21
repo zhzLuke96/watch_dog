@@ -1,5 +1,5 @@
-console.log('[sysusage] loaded!');
 const os = require('os');
+console.log('[sysusage] loaded!');
 
 module.exports = async function (query = {}) {
   const {
@@ -8,6 +8,15 @@ module.exports = async function (query = {}) {
     external,
     arrayBuffers
   } = process.memoryUsage();
+  const {
+    use
+  } = this;
+  const ctx = use('ctx');
+  ctx.call(this, {
+    method: 'set',
+    path: 'lastIPAddress',
+    value: this.req.connection.remoteAddress
+  });
   return {
     mem: {
       rss,

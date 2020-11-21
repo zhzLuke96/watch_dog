@@ -50,4 +50,11 @@
       reload();
       [title, ...inputs, submit, resp].map(d => dom.appendChild(d));
     })
+
+  const apis = document.querySelector('#apis');
+  apis.innerHTML = await fetch('/apis')
+    .then(r => r.json())
+    .then(({
+      result
+    }) => result.join(' '));
 })();

@@ -2,36 +2,45 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const url = require('url');
-const watch_dog_config = require('./watch_dog.config.json');
+
+const {
+    isFunc,
+    RFile,
+    R404,
+    R_JSON,
+    hotloadModule,
+    moduleGC,
+    requireMap,
+    apiList,
+    wwwFiles,
+    resetMoudles
+} = require('./common.js');
+
+// 😀 config file 😀
+let watch_dog_config = require('./watch_dog.config.json');
 
 ;
 (() => {
+    const MIN_TIMEOUT = 1000 * 60 * 0.618;
+
     watch_dog_config.servername = watch_dog_config.servername || 'watch_dog';
     watch_dog_config.api_prefix = watch_dog_config.api_prefix || '/app/';
-    watch_dog_config.module_GC_timeout = watch_dog_config.module_GC_timeout || 1000 * 60 * 0.618;
+    if (watch_dog_config.module_GC_timeout < MIN_TIMEOUT) {
+        watch_dog_config.module_GC_timeout = MIN_TIMEOUT;
+    }
     // workshopdir
     if (watch_dog_config.workshopdir) {
         if (!path.isAbsolute(watch_dog_config.workshopdir)) {
             watch_dog_config.workshopdir = path.join(__dirname, watch_dog_config.workshopdir);
         }
     }
+    watch_dog_config = Object.freeze(watch_dog_config);
 })();
 const app_dirname = './app/';
-const wwwFiles = {
-    'index.html': fs.readFileSync('./www/index.html'),
-    'index.js': fs.readFileSync('./www/index.js'),
-    'index.css': fs.readFileSync('./www/index.css'),
-    'favicon.ico': fs.readFileSync('./www/favicon.ico'),
-}
 const fileMap = {
     '': 'index.html',
     '/': 'index.html',
 }
-const mime = p => ({
-    '.html': 'text/html',
-    '.css': 'text/css',
-    '.js': 'application/x-javascript'
-} [path.extname(p)] || 'text/plain');
 
 const server = http.createServer()
 server.on('request', function (req, resp) {
@@ -44,6 +53,10 @@ server.on('request', function (req, resp) {
     } else if (urlOpt.pathname.slice(1) in wwwFiles) {
         const filename = urlOpt.pathname.slice(1).trim();
         return RFile(resp, filename);
+    } else if (urlOpt.pathname === '/apis') {
+        return R_JSON(resp, {
+            result: apiList()
+        })
     } else if (urlOpt.pathname.startsWith(watch_dog_config.api_prefix)) {
         return runapp(req, resp);
     }
@@ -53,45 +66,6 @@ server.on('request', function (req, resp) {
 server.listen(9901, function () {
     console.log('woof~woof,woof,woof. http://127.0.0.1:9901/index.html')
 })
-
-function RFile(resp, filename) {
-    resp.setHeader('Content-Type', `${mime(filename)}; charset=utf-8`)
-    resp.write(wwwFiles[filename]);
-    return resp.end();
-}
-
-function R404(resp, msg = '') {
-    resp.writeHead(404, {
-        "Content-Type": "text/plain; charset=utf-8"
-    });
-    resp.write("404 Not Found\n" + msg);
-    resp.end();
-}
-
-function R_JSON(resp, obj) {
-    resp.writeHead(200, {
-        "Content-Type": "application/json; charset=utf-8"
-    });
-    resp.write(JSON.stringify(obj));
-    resp.end();
-}
-
-function isFunc(functionToCheck) {
-    return typeof functionToCheck === 'function';
-}
-
-const requireMap = new Map();
-
-function watchModule(pth) {
-    if (requireMap.has(pth)) return;
-    fs.watchFile(path.resolve(pth), () => moduleGC(pth, '[FILE_CHANGE]'))
-}
-
-function moduleGC(pth, msg) {
-    delete require.cache[require.resolve(pth)]
-    requireMap.delete(pth);
-    console.log('[MODULE_GC]', msg, pth);
-}
 
 function faas_require(pth) {
     const {
@@ -106,16 +80,16 @@ function faas_require(pth) {
         ext
     } = path.parse(pathname.replace(watch_dog_config.api_prefix, ''));
     if (ext !== '.js' && ext !== '') {
-        return null;
+        return noop;
     }
     const fsPth = `${app_dirname}${dir ? dir + '/' : ''}${base}${ext ? ext : '.js'}`;
     if (requireMap.has(fsPth)) {
         return requireMap.get(fsPth);
     }
     if (!fs.existsSync(path.join(__dirname, fsPth))) {
-        return null;
+        return noop;
     }
-    watchModule(fsPth);
+    hotloadModule(fsPth);
     const m = require(fsPth);
     setTimeout(() => moduleGC(fsPth, '[TIMEOUT]'), watch_dog_config.module_GC_timeout);
     requireMap.set(fsPth, m);
@@ -175,12 +149,16 @@ async function parseRequest(req) {
     } = url.parse(req.url, true);
     let body = '';
     let json = {};
-    if (method === 'POST' && headers['content-type'] === 'application/json') {
-        body = await getBody(req);
-        try {
-            json = JSON.parse(body);
-        } catch (error) {
-            // pass
+    if (method === 'POST') {
+        if (headers['content-type'] === 'application/json') {
+            body = await getBody(req);
+            try {
+                json = JSON.parse(body);
+            } catch (error) {
+                // pass
+            }
+        } else if (headers['content-type'] === 'multipart/form-data') {
+            // TODO: 读取文件
         }
     }
     return {

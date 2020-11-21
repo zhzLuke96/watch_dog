@@ -8,13 +8,14 @@
 </head>
 
 <body>
-    <b>better life</b>
+    <b id="apis">better life</b>
     <div class="tester" data-name="add" data-a="1" data-b="2" data-msg="hello world. d1kms" data-ms="1000"></div>
     <div class="tester" data-name="add" data-a="2" data-b="3" data-msg="hello world. d2kms" data-ms="2000"></div>
     <div class="tester" data-name="logger" data-msg="logger!!"></div>
     <div class="tester" data-name="logger" data-msg="logger!!(post)" post></div>
     <div class="tester" data-name="@sys/sysusage" post></div>
-    <div class="tester" data-name="@sys/sysusage" post></div>
+    <div class="tester" data-name="@sandbox/vm" data-code="return console.log('hello world');" post></div>
+    <div class="tester" data-name="@ctx/exec" data-code="db.get()" post></div>
     <div class="tester" data-name="@jwt/encoder" data-user="" data-pwd=""></div>
     <div class="tester" data-name="@jwt/decoder" data-token=""></div>
     <script src="./index.js"></script>
